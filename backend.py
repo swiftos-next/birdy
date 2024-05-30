@@ -41,10 +41,6 @@ def update_module_info(module_name, module_version, module_info):
     modules_database[key] = module_info
     save_modules_database()
 
-@app.route('/modules/<filename>')
-def module_file(filename):
-    return send_from_directory('db/modules', filename)
-
 @app.route('/publish', methods=['POST'])
 def publish_module():
     data = json.loads(request.form.get('json'))
@@ -69,7 +65,7 @@ def publish_module():
         return 'Module published successfully!', 200
     return 'Invalid package name', 400
 
-@app.route('/install/<module_name>/<module_version>', methods=['GET'])
+@app.route('/modules/<module_name>-<module_version>', methods=['GET'])
 def install_module(module_name, module_version):
     module_info = get_module_info(module_name, module_version)
 
