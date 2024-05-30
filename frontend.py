@@ -3,25 +3,30 @@ import json
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--fetch", help="Fetch a package")
-parser.add_argument("--publish", help="Publish a package")
+parser.add_argument("--fetch", nargs=2, help="Fetch a package")
+parser.add_argument("--publish",nargs=4, help="Publish a package")
+
 args = parser.parse_args()
 
 if(args.publish):
-    description = input("Description: ")
-    version = input("Version: ")
+    filename = args.publish[0]
+    name = args.publish[1]
+    version = args.publish[2]
+    description = args.publish[3]
+        
     module_data = {
-        'name': args.publish,
+        'name': name,
+        # placeholder will later use authentication
         'AuthorName': 'Natesworks',
-        'description': description,
         'version': version,
+        'description': description
     }
 
     data = {
         'json': json.dumps(module_data),
     }
 
-    filename = input("File: ")
+    name = f"{name}-{version}"
 
     try:
         with open(filename) as module:
@@ -30,7 +35,7 @@ if(args.publish):
         print(f"\033[31mFile {filename} not found!\033[0m")
         exit(1)
 
-    files = {'file': (args.publish, content)}
+    files = {'file': (name, content)}
     response = requests.post('http://localhost:5000/publish', files=files, data=data)
 
     print(response.text)
@@ -45,5 +50,5 @@ def download_file(url, destination):
         print(f"Failed to download file from {url}")
 
 if(args.fetch):
-    output = input("Output: ")
-    download_file(f"http://localhost:5000/modules/{args.fetch}", output)
+    output = args.fetch[1]
+    download_file(f"http://localhost:5000/modules/{args.fetch[0]}", output)
