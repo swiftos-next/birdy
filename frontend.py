@@ -26,8 +26,6 @@ def publish():
         'json': json.dumps(module_data),
     }
 
-    name = f"{name}-{version}"
-
     try:
         with open(filename) as module:
             content = module.read()
@@ -52,6 +50,22 @@ def download_file(url, destination):
     else:
         print(f"Failed to download file from {url}")
 
+def fetch_latest_version(name):
+    try:
+        response = requests.get(f"http://localhost:5000/versions/{name}")
+        response.raise_for_status()
+        versions = response.json()
+        if versions:
+            latest_version = max(versions)
+            return latest_version
+    except requests.RequestException as e:
+        print(f"Error fetching latest version for {name}: {e}")
+    return None
+
+
 if(args.fetch):
+    name = args.fetch[0]
     output = args.fetch[1]
-    download_file(f"http://localhost:5000/modules/{args.fetch[0]}", output)
+    if("-" not in name):
+        name = f"{name}-{fetch_latest_version(name)}"
+    download_file(f"http://localhost:5000/modules/{name}", output)
