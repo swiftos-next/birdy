@@ -48,7 +48,7 @@ def download_file(url, destination):
             f.write(response.content)
         print(f"File downloaded successfully to {destination}")
     else:
-        print(f"Failed to download file from {url}")
+        print(f"\033[31mFailed to download file from {url}")
 
 def fetch_latest_version(name):
     try:
@@ -59,7 +59,7 @@ def fetch_latest_version(name):
             latest_version = max(versions)
             return latest_version
     except requests.RequestException as e:
-        print(f"Error fetching latest version for {name}: {e}")
+        print(f"\033[31mError fetching latest version for {name}: {e}")
     return None
 
 
