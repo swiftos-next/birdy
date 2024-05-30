@@ -8,7 +8,7 @@ parser.add_argument("--publish",nargs=4, help="Publish a package")
 
 args = parser.parse_args()
 
-if(args.publish):
+def publish():
     filename = args.publish[0]
     name = args.publish[1]
     version = args.publish[2]
@@ -39,6 +39,9 @@ if(args.publish):
     response = requests.post('http://localhost:5000/publish', files=files, data=data)
 
     print(response.text)
+
+if(args.publish):
+    publish()
 
 def download_file(url, destination):
     response = requests.get(url)
