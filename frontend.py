@@ -1,11 +1,12 @@
 import requests
 import json
 import argparse
+from getpass import getpass
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--fetch", nargs=2, help="Fetch a package")
 parser.add_argument("--publish", nargs=4, help="Publish a package")
-parser.add_argument("--register", nargs=2, help="Register a new user")
+parser.add_argument("--register", action="store_const",const=True, help="Register a new user")
 
 args = parser.parse_args()
 auth_token = None
@@ -31,7 +32,7 @@ def login(username, password):
 
 def publish():
     username = input("Username: ")
-    password = input("Password: ")
+    password = getpass("Password: ")
 
     login(username, password)
 
@@ -90,8 +91,8 @@ if(args.publish):
 
 if(args.register):
     username = input("Username: ")
-    password = input("Password: ")
-    register(username, password)
+    password = getpass("Password: ")
+    register(username,password)
 
 if (args.fetch):
     name = args.fetch[0]
