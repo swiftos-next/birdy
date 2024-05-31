@@ -85,10 +85,15 @@ def fetch_latest_version(name):
         print(f"\033[31mError fetching latest version for {name}: {e}\033[0m")
     return None
 
-if args.publish:
+if(args.publish):
     publish()
 
-if args.fetch:
+if(args.register):
+    username = input("Username: ")
+    password = input("Password: ")
+    register(username, password)
+
+if (args.fetch):
     name = args.fetch[0]
     output = args.fetch[1]
     if "-" not in name:
