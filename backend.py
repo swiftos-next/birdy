@@ -3,49 +3,52 @@ import json
 import re
 from flask import Flask, request, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-
-modules_database = {}
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///packages.db'
 allowed_package_names = re.compile(r'^[A-Za-z0-9]*$')
-db_file_path = 'db/modules_database.json'
+modules_databse = {}
+db = SQLAlchemy(app)
 
-def load_modules_database():
-    global modules_database
-    if os.path.exists(db_file_path):
-        with open(db_file_path, 'r') as db_file:
-            modules_database = json.load(db_file)
+def save_package_info(package_info):
+    package = Package(
+        name=package_info['name'],
+        author=package_info['author'],
+        description=package_info['description'],
+        version=package_info['version'],
+        file=package_info['file'],
+        downloads=package_info['downloads'],
+        verified=package_info['verified']
+    )
+    db.session.add(package)
+    db.session.commit()
 
-def save_modules_database():
-    global modules_database
-    with open(db_file_path, 'w') as db_file:
-        json.dump(modules_database, db_file, indent=4)
 
-def save_module_info(module_info):
-    global modules_database
-    key = f"{module_info['name']}-{module_info['version']}"
-    modules_database[key] = module_info
-    save_modules_database()
-
-def get_module_info(module_name, module_version=None):
-    global modules_database
-    if module_version:
-        key = f"{module_name}-{module_version}"
-        return modules_database.get(key)
+def get_package_info(package_name, package_version=None):
+    if package_version:
+        return Package.query.filter_by(name=package_name, version=package_version).first()
     else:
-        return [info for key, info in modules_database.items() if key.startswith(f"{module_name}-")]
+        return Package.query.filter_by(name=package_name).all()
 
-def update_module_info(module_name, module_version, module_info):
-    global modules_database
-    key = f"{module_name}-{module_version}"
-    modules_database[key] = module_info
-    save_modules_database()
+
+def update_package_info(package_name, package_version, package_info):
+    package = Package.query.filter_by(
+        name=package_name, version=package_version).first()
+    if package:
+        package.author = package_info['author']
+        package.description = package_info['description']
+        package.file = package_info['file']
+        package.downloads = package_info['downloads']
+        package.verified = package_info['verified']
+        db.session.commit()
+
 
 @app.route('/publish', methods=['POST'])
-def publish_module():
+def publish_package():
     data = json.loads(request.form.get('json'))
     if allowed_package_names.match(data['name']):
-        module_info = {
+        package_info = {
             'name': data['name'],
             'author': data['AuthorName'],
             'description': data['description'],
@@ -56,36 +59,55 @@ def publish_module():
         }
 
         file = request.files['file']
-        file_path = f"{os.path.join('db/modules')}/{secure_filename(file.filename)}-{module_info['version']}"
+        file_path = f"{os.path.join(
+            'db/packages')}/{secure_filename(file.filename)}-{package_info['version']}"
         file.save(file_path)
-        module_info['file'] = file_path
+        package_info['file'] = file_path
 
-        save_module_info(module_info)
+        save_package_info(package_info)
 
-        return 'Module published successfully!', 200
+        return 'Package published successfully!', 200
     return 'Invalid package name', 400
 
-@app.route('/modules/<module_name>-<module_version>', methods=['GET'])
-def install_module(module_name, module_version):
-    module_info = get_module_info(module_name, module_version)
 
-    if module_info is None:
-        return 'Module not found.', 404
+@app.route('/packages/<package_name>-<package_version>', methods=['GET'])
+def install_package(package_name, package_version):
+    package_info = get_package_info(package_name, package_version)
 
-    module_info['downloads'] += 1
+    if package_info is None:
+        return 'Package not found.', 404
 
-    update_module_info(module_name, module_version, module_info)
+    package_info.downloads += 1
+    db.session.commit()
 
-    return send_from_directory('db/modules', os.path.basename(module_info['file'])), 200
+    return send_from_directory('db/packages', os.path.basename(package_info.file)), 200
 
-@app.route('/versions/<module_name>', methods=['GET'])
-def get_versions(module_name):
-    module_infos = get_module_info(module_name)
-    if not module_infos:
-        return 'Module not found.', 404
-    versions = [info['version'] for info in module_infos]
+
+@app.route('/versions/<package_name>', methods=['GET'])
+def get_versions(package_name):
+    package_infos = get_package_info(package_name)
+    if not package_infos:
+        return 'Package not found.', 404
+    versions = [info.version for info in package_infos]
     return jsonify(versions)
 
+
+class Package(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    author = db.Column(db.String(80), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    version = db.Column(db.String(20), nullable=False)
+    file = db.Column(db.String(120), nullable=False)
+    downloads = db.Column(db.Integer, default=0)
+    verified = db.Column(db.Boolean, default=False)
+
+    __table_args__ = (db.UniqueConstraint(
+        'name', 'version', name='_name_version_uc'),)
+
+
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
-    load_modules_database()
     app.run(debug=True)

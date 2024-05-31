@@ -8,13 +8,14 @@ parser.add_argument("--publish", nargs=4, help="Publish a package")
 
 args = parser.parse_args()
 
+
 def publish():
     filename = args.publish[0]
     name = args.publish[1]
     version = args.publish[2]
     description = args.publish[3]
 
-    module_data = {
+    package_data = {
         'name': name,
         # placeholder will later use authentication
         'AuthorName': 'Natesworks',
@@ -23,12 +24,12 @@ def publish():
     }
 
     data = {
-        'json': json.dumps(module_data),
+        'json': json.dumps(package_data),
     }
 
     try:
-        with open(filename) as module:
-            content = module.read()
+        with open(filename) as package:
+            content = package.read()
     except FileNotFoundError:
         print(f"\033[31mFile {filename} not found!\033[0m")
         exit(1)
@@ -72,4 +73,4 @@ if (args.fetch):
     output = args.fetch[1]
     if ("-" not in name):
         name = f"{name}-{fetch_latest_version(name)}"
-    download_file(f"http://localhost:5000/modules/{name}", output)
+    download_file(f"http://localhost:5000/packages/{name}", output)
