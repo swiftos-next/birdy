@@ -98,34 +98,31 @@ def update_package_info(package_name, package_version, package_info):
 def publish_package():
     data = json.loads(request.form.get('json'))
     if allowed_package_names.match(data['name']):
+        # Check if the current user is the original owner of the package or if the package doesn't exist
         package_info = get_package_info(data['name'])
-        if package_info:
-            original_owner = package_info[0].author
-            if original_owner == current_user.username:
-                new_version = data['version']
-                existing_versions = [package.version for package in package_info]
-                if new_version not in existing_versions:
-                    package_data = {
-                        'name': data['name'],
-                        'author': current_user.username,
-                        'description': data['description'],
-                        'version': new_version,
-                        'file': secure_filename(request.files['file'].filename),
-                        'downloads': 0,
-                        'verified': False
-                    }
-                    file = request.files['file']
-                    file_path = os.path.join('db/packages', secure_filename(f"{data['name']}-{new_version}"))
-                    file.save(file_path)
-                    package_data['file'] = file_path
-                    save_package_info(package_data)
-                    return 'Package published successfully!', 200
-                else:
-                    return f'Version {new_version} already exists for {data["name"]}.', 400
+        if not package_info or package_info[0].author == current_user.username:
+            new_version = data['version']
+            # Check if the new version is greater than the existing ones
+            if not package_info or new_version > max([package.version for package in package_info]):
+                package_data = {
+                    'name': data['name'],
+                    'author': current_user.username,
+                    'description': data['description'],
+                    'version': new_version,
+                    'file': secure_filename(request.files['file'].filename),
+                    'downloads': 0,
+                    'verified': False
+                }
+                file = request.files['file']
+                file_path = os.path.join('db/packages', secure_filename(f"{data['name']}-{new_version}"))
+                file.save(file_path)
+                package_data['file'] = file_path
+                save_package_info(package_data)
+                return 'Package published successfully!', 200
             else:
-                return f'You are not the original owner of {data["name"]}.', 401
+                return f'Version {new_version} already exists for {data["name"]}.', 400
         else:
-            return f'Package {data["name"]} does not exist.', 404
+            return f'You are not the original owner of {data["name"]}.', 401
     else:
         return 'Invalid package name', 400
 
