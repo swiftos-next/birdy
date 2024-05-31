@@ -7,6 +7,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///packages.db'
+app.config['SECRET_KEY'] = 'changeme'
 allowed_package_names = re.compile(r'^[A-Za-z0-9]*$')
 modules_databse = {}
 db = SQLAlchemy(app)
