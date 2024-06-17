@@ -7,20 +7,28 @@ from flask_login import LoginManager, UserMixin, login_user, login_required, log
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# Initialize Flask app
 app = Flask(__name__)
+# Configure database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///packages.db'
 app.config['SECRET_KEY'] = 'changeme'
+
+# Compile regex for allowed package names
 allowed_package_names = re.compile(r'^[A-Za-z0-9]*$')
+# Initialize SQLAlchemy
 db = SQLAlchemy(app)
+# Initialize LoginManager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# User model
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
 
+# Package model
 class Package(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), nullable=False)
@@ -28,16 +36,17 @@ class Package(db.Model):
     description = db.Column(db.Text, nullable=False)
     version = db.Column(db.String(20), nullable=False)
     file = db.Column(db.String(120), nullable=False)
-    downloads = db.Column(db.Integer, default=0)
-    verified = db.Column(db.Boolean, default=False)
+    dependencies = db.Column(db.JSON, nullable=False, default=[])
 
     __table_args__ = (db.UniqueConstraint(
         'name', 'version', name='_name_version_uc'),)
 
+# Load user by ID
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+# User registration route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     data = request.get_json()
@@ -48,6 +57,7 @@ def register():
     db.session.commit()
     return 'User registered successfully', 201
 
+# User login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     data = request.get_json()
@@ -57,12 +67,14 @@ def login():
         return 'Logged in successfully', 200
     return 'Invalid credentials', 401
 
+# User logout route
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
     return 'Logged out successfully', 200
 
+# Save package information
 def save_package_info(package_info):
     package = Package(
         name=package_info['name'],
@@ -70,18 +82,19 @@ def save_package_info(package_info):
         description=package_info['description'],
         version=package_info['version'],
         file=package_info['file'],
-        downloads=package_info['downloads'],
-        verified=package_info['verified']
+        dependencies=package_info['dependencies']
     )
     db.session.add(package)
     db.session.commit()
 
+# Get package information
 def get_package_info(package_name, package_version=None):
     if package_version:
         return Package.query.filter_by(name=package_name, version=package_version).first()
     else:
         return Package.query.filter_by(name=package_name).all()
 
+# Update package information
 def update_package_info(package_name, package_version, package_info):
     package = Package.query.filter_by(
         name=package_name, version=package_version).first()
@@ -89,10 +102,10 @@ def update_package_info(package_name, package_version, package_info):
         package.author = package_info['author']
         package.description = package_info['description']
         package.file = package_info['file']
-        package.downloads = package_info['downloads']
-        package.verified = package_info['verified']
+        package.dependencies = package_info['dependencies']
         db.session.commit()
 
+# Publish a package
 @app.route('/publish', methods=['POST'])
 @login_required
 def publish_package():
@@ -110,9 +123,9 @@ def publish_package():
                     'description': data['description'],
                     'version': new_version,
                     'file': secure_filename(request.files['file'].filename),
-                    'downloads': 0,
-                    'verified': False
+                    'dependencies': data.get('dependencies', [])
                 }
+                # Save the uploaded file
                 file = request.files['file']
                 file_path = os.path.join('db/packages', secure_filename(f"{data['name']}-{new_version}"))
                 file.save(file_path)
@@ -126,6 +139,7 @@ def publish_package():
     else:
         return 'Invalid package name', 400
 
+# Install a package
 @app.route('/packages/<package_name>-<package_version>', methods=['GET'])
 def install_package(package_name, package_version):
     package_info = get_package_info(package_name, package_version)
@@ -133,11 +147,9 @@ def install_package(package_name, package_version):
     if package_info is None:
         return 'Package not found.', 404
 
-    package_info.downloads += 1
-    db.session.commit()
-
     return send_from_directory('db/packages', os.path.basename(package_info.file)), 200
 
+# Get package versions
 @app.route('/versions/<package_name>', methods=['GET'])
 def get_versions(package_name):
     package_infos = get_package_info(package_name)
@@ -146,8 +158,10 @@ def get_versions(package_name):
     versions = [info.version for info in package_infos]
     return jsonify(versions)
 
+# Create all tables
 with app.app_context():
     db.create_all()
 
+# Run the application
 if __name__ == '__main__':
     app.run(debug=True)
