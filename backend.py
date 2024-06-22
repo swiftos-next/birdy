@@ -82,7 +82,7 @@ def save_package_info(package_info):
         description=package_info['description'],
         version=package_info['version'],
         file=package_info['file'],
-        dependencies=package_info['dependencies']
+        dependencies=package_info['dependencies'] 
     )
     db.session.add(package)
     db.session.commit()
