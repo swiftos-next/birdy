@@ -11,7 +11,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 # Configure database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///packages.db'
+# Change this by running config.py
 app.config['SECRET_KEY'] = 'changeme'
+allow_registration = True
+allow_publishing = True
 
 # Compile regex for allowed package names
 allowed_package_names = re.compile(r'^[A-Za-z0-9]*$')
@@ -46,16 +49,17 @@ class Package(db.Model):
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# User registration route
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    data = request.get_json()
-    username = data['username']
-    password = generate_password_hash(data['password'])
-    user = User(username=username, password=password)
-    db.session.add(user)
-    db.session.commit()
-    return 'User registered successfully', 201
+if allow_registration:
+    # User registration route
+    @app.route('/register', methods=['GET', 'POST'])
+    def register():
+        data = request.get_json()
+        username = data['username']
+        password = generate_password_hash(data['password'])
+        user = User(username=username, password=password)
+        db.session.add(user)
+        db.session.commit()
+        return 'User registered successfully', 201
 
 # User login route
 @app.route('/login', methods=['GET', 'POST'])
@@ -105,39 +109,40 @@ def update_package_info(package_name, package_version, package_info):
         package.dependencies = package_info['dependencies']
         db.session.commit()
 
-# Publish a package
-@app.route('/publish', methods=['POST'])
-@login_required
-def publish_package():
-    data = json.loads(request.form.get('json'))
-    if allowed_package_names.match(data['name']):
-        # Check if the current user is the original owner of the package or if the package doesn't exist
-        package_info = get_package_info(data['name'])
-        if not package_info or package_info[0].author == current_user.username:
-            new_version = data['version']
-            # Check if the new version is greater than the existing ones
-            if not package_info or new_version > max([package.version for package in package_info]):
-                package_data = {
-                    'name': data['name'],
-                    'author': current_user.username,
-                    'description': data['description'],
-                    'version': new_version,
-                    'file': secure_filename(request.files['file'].filename),
-                    'dependencies': data.get('dependencies', [])
-                }
-                # Save the uploaded file
-                file = request.files['file']
-                file_path = os.path.join('packages', secure_filename(f"{data['name']}-{new_version}"))
-                file.save(file_path)
-                package_data['file'] = file_path
-                save_package_info(package_data)
-                return 'Package published successfully!', 200
+if allow_publishing:
+    # Publish a package
+    @app.route('/publish', methods=['POST'])
+    @login_required
+    def publish_package():
+        data = json.loads(request.form.get('json'))
+        if allowed_package_names.match(data['name']):
+            # Check if the current user is the original owner of the package or if the package doesn't exist
+            package_info = get_package_info(data['name'])
+            if not package_info or package_info[0].author == current_user.username:
+                new_version = data['version']
+                # Check if the new version is greater than the existing ones
+                if not package_info or new_version > max([package.version for package in package_info]):
+                    package_data = {
+                        'name': data['name'],
+                        'author': current_user.username,
+                        'description': data['description'],
+                        'version': new_version,
+                        'file': secure_filename(request.files['file'].filename),
+                        'dependencies': data.get('dependencies', [])
+                    }
+                    # Save the uploaded file
+                    file = request.files['file']
+                    file_path = os.path.join('packages', secure_filename(f"{data['name']}-{new_version}"))
+                    file.save(file_path)
+                    package_data['file'] = file_path
+                    save_package_info(package_data)
+                    return 'Package published successfully!', 200
+                else:
+                    return f'Version {new_version} already exists for {data["name"]}.', 400
             else:
-                return f'Version {new_version} already exists for {data["name"]}.', 400
+                return f'You are not the original owner of {data["name"]}.', 401
         else:
-            return f'You are not the original owner of {data["name"]}.', 401
-    else:
-        return 'Invalid package name', 400
+            return 'Invalid package name', 400
 
 # Install a package
 @app.route('/packages/<package_name>-<package_version>', methods=['GET'])
