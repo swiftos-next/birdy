@@ -145,7 +145,7 @@ if allow_publishing:
             return 'Invalid package name', 400
 
 # Install a package
-@app.route('/packages/<package_name>-<package_version>', methods=['GET'])
+@app.route('/packages/<package_name>/<package_version>', methods=['GET'])
 def install_package(package_name, package_version):
     package_info = get_package_info(package_name, package_version)
 
