@@ -155,7 +155,7 @@ def install_package(package_name, package_version):
     return send_from_directory('packages', os.path.basename(package_info.file)), 200
 
 # Get package versions
-@app.route('/versions/<package_name>', methods=['GET'])
+@app.route('/packages/<package_name>/versions', methods=['GET'])
 def get_versions(package_name):
     package_infos = get_package_info(package_name)
     if not package_infos:
