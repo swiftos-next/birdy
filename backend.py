@@ -1,7 +1,7 @@
 import os
 import json
 import re
-from flask import Flask, request, send_from_directory, jsonify, redirect, url_for
+from flask import Flask, request, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.utils import secure_filename
@@ -9,6 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 # Initialize Flask app
 app = Flask(__name__)
+
 # Configure database
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///packages.db'
 # Change this by running config.py
@@ -18,8 +19,10 @@ allow_publishing = True
 
 # Compile regex for allowed package names
 allowed_package_names = re.compile(r'^[A-Za-z0-9]*$')
+
 # Initialize SQLAlchemy
 db = SQLAlchemy(app)
+
 # Initialize LoginManager
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -51,7 +54,7 @@ def load_user(user_id):
 
 if allow_registration:
     # User registration route
-    @app.route('/register', methods=['GET', 'POST'])
+    @app.route('/register', methods=['POST'])
     def register():
         data = request.get_json()
         username = data['username']
@@ -62,7 +65,7 @@ if allow_registration:
         return 'User registered successfully', 201
 
 # User login route
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
     user = User.query.filter_by(username=data['username']).first()
@@ -86,7 +89,7 @@ def save_package_info(package_info):
         description=package_info['description'],
         version=package_info['version'],
         file=package_info['file'],
-        dependencies=package_info['dependencies'] 
+        dependencies=package_info['dependencies']
     )
     db.session.add(package)
     db.session.commit()
@@ -118,7 +121,7 @@ if allow_publishing:
         if allowed_package_names.match(data['name']):
             # Check if the current user is the original owner of the package or if the package doesn't exist
             package_info = get_package_info(data['name'])
-            if not package_info or package_info[0].author == current_user.username:
+            if not package_info or package_info.author == current_user.username:
                 new_version = data['version']
                 # Check if the new version is greater than the existing ones
                 if not package_info or new_version > max([package.version for package in package_info]):
@@ -132,7 +135,7 @@ if allow_publishing:
                     }
                     # Save the uploaded file
                     file = request.files['file']
-                    file_path = os.path.join('packages', secure_filename(f"{data['name']}-{new_version}"))
+                    file_path = os.path.join('packages', secure_filename(f"{data['name']}/{new_version}"))
                     file.save(file_path)
                     package_data['file'] = file_path
                     save_package_info(package_data)
@@ -152,7 +155,7 @@ def install_package(package_name, package_version):
     if package_info is None:
         return 'Package not found.', 404
 
-    return send_from_directory('packages', os.path.basename(package_info.file)), 200
+    return send_from_directory('packages', package_info.file), 200
 
 # Get package versions
 @app.route('/packages/<package_name>/versions', methods=['GET'])
