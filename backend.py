@@ -127,7 +127,7 @@ def publish_package():
                 }
                 # Save the uploaded file
                 file = request.files['file']
-                file_path = os.path.join('db/packages', secure_filename(f"{data['name']}-{new_version}"))
+                file_path = os.path.join('packages', secure_filename(f"{data['name']}-{new_version}"))
                 file.save(file_path)
                 package_data['file'] = file_path
                 save_package_info(package_data)
@@ -147,7 +147,7 @@ def install_package(package_name, package_version):
     if package_info is None:
         return 'Package not found.', 404
 
-    return send_from_directory('db/packages', os.path.basename(package_info.file)), 200
+    return send_from_directory('packages', os.path.basename(package_info.file)), 200
 
 # Get package versions
 @app.route('/versions/<package_name>', methods=['GET'])
