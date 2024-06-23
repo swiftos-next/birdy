@@ -14,7 +14,7 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///packages.db'
 # Change this by running config.py
 app.config['SECRET_KEY'] = 'changeme'
-allow_registration = True
+allow_registration = False
 allow_publishing = True
 
 # Compile regex for allowed package names
@@ -63,6 +63,10 @@ if allow_registration:
         db.session.add(user)
         db.session.commit()
         return 'User registered successfully', 201
+else:
+    @app.route('/register', methods=['POST'])
+    def register():
+        return "Registration is disabled on this server."
 
 # User login route
 @app.route('/login', methods=['POST'])
@@ -147,6 +151,10 @@ if allow_publishing:
                 return f'You are not the original owner of {data["name"]}.', 401
         else:
             return 'Invalid package name', 400
+else:
+    @app.route('/publish', methods=['POST'])
+    def publish_package():
+        return "Publishing is disabled on this server."
 
 # Install a package
 @app.route('/packages/<package_name>/<package_version>', methods=['GET'])
