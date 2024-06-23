@@ -174,18 +174,19 @@ def install_package(package_name, package_version):
     package_file_path = package_info.file
     return send_from_directory(app.root_path, package_file_path), 200
 
-# Get package versions
-@app.route('/packages/<package_name>/versions', methods=['GET'])
-def get_versions(package_name):
-    package_infos = get_package_info(package_name)
-    if not package_infos:
-        return 'Package not found.', 404
-    versions = [info.version for info in package_infos]
-    return jsonify(versions)
+# Function to fetch the latest version of a package
+def fetch_latest_version(name):
+    latest_version = Package.query.filter_by(name=name).order_by(Package.version.desc()).first()
+    if latest_version:
+        return latest_version.version
+    return None
 
 # Get package info as JSON
 @app.route('/packages/<package_name>/<package_version>.json', methods=['GET'])
-def get_package_info_json(package_name, package_version):
+@app.route('/packages/<package_name>.json', methods=['GET'])
+def get_package_info_json(package_name, package_version=None):
+    if package_version is None:
+        package_version = fetch_latest_version(package_name)
     package_info = get_package_info(package_name, package_version)
     if not package_info:
         return jsonify({'error': 'Package not found.'}), 404
