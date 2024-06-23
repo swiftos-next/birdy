@@ -124,11 +124,18 @@ if allow_publishing:
         data = json.loads(request.form.get('json'))
         if allowed_package_names.match(data['name']):
             # Check if the current user is the original owner of the package or if the package doesn't exist
-            package_info = get_package_info(data['name'])
-            if not package_info or package_info.author == current_user.username:
+            package_info_list = get_package_info(data['name'])
+            if not package_info_list:
+                # No existing package with this name
+                package_info = None
+            else:
+                # Check if the current user is the author of the package
+                package_info = next((pkg for pkg in package_info_list if pkg.author == current_user.username), None)
+            
+            if not package_info:
                 new_version = data['version']
                 # Check if the new version is greater than the existing ones
-                if not package_info or new_version > max([package.version for package in package_info]):
+                if not package_info_list or new_version > max([pkg.version for pkg in package_info_list]):
                     package_data = {
                         'name': data['name'],
                         'author': current_user.username,
@@ -157,7 +164,7 @@ else:
         return "Publishing is disabled on this server."
 
 # Install a package
-@app.route('/packages/<package_name>/<package_version>', methods=['GET'])
+@app.route('/packages/<package_name>-<package_version>.tar.xz', methods=['GET'])
 def install_package(package_name, package_version):
     package_info = get_package_info(package_name, package_version)
 
@@ -175,6 +182,23 @@ def get_versions(package_name):
         return 'Package not found.', 404
     versions = [info.version for info in package_infos]
     return jsonify(versions)
+
+# Get package info as JSON
+@app.route('/packages/<package_name>/<package_version>.json', methods=['GET'])
+def get_package_info_json(package_name, package_version):
+    package_info = get_package_info(package_name, package_version)
+    if not package_info:
+        return jsonify({'error': 'Package not found.'}), 404
+    
+    package_data = {
+        'name': package_info.name,
+        'author': package_info.author,
+        'description': package_info.description,
+        'version': package_info.version,
+        'file': package_info.file,
+        'dependencies': package_info.dependencies
+    }
+    return jsonify(package_data), 200
 
 # Create all tables
 with app.app_context():
